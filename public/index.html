@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JoedTech AI E-Book Builder</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="toolbox">
+            <h3>🛠️ Araçlar</h3>
+            <p class="desc">Tuvale sürükleyin</p>
+            <div class="tool-item" draggable="true" data-type="text">📝 Metin Bloğu</div>
+            <div class="tool-item" draggable="true" data-type="image">🖼️ AI Görsel</div>
+            <div class="tool-item" draggable="true" data-type="video">🎥 AI Video</div>
+            <div class="tool-item" draggable="true" data-type="quiz">❓ AI Soru Seti</div>
+        </aside>
+
+        <main class="canvas-container">
+            <div class="canvas-header">📄 Sayfa 1</div>
+            <div class="canvas" id="canvas">
+                <div class="empty-state">İçerik oluşturmak için sol taraftan araç sürükleyin</div>
+            </div>
+        </main>
+
+        <aside class="properties-panel">
+            <h3>✨ AI Asistan</h3>
+            <div id="no-selection" class="panel-msg">Düzenlemek için tuvalden bir öge seçin.</div>
+            
+            <div id="ai-controls" style="display: none;">
+                <div class="selected-badge" id="selected-type">Seçilen: Metin</div>
+                <textarea id="ai-prompt" placeholder="Yapay zekaya ne istediğinizi yazın... (Örn: Fotosentezi anlatan 3 maddelik bir metin yaz)"></textarea>
+                <button id="btn-generate" class="btn-primary">Yapay Zeka İle Üret</button>
+            </div>
+        </aside>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

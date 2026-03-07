@@ -1,0 +1,34 @@
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+body { background-color: #f4f5f7; height: 100vh; overflow: hidden; }
+
+.app-container { display: flex; height: 100vh; width: 100vw; }
+
+/* Paneller Genel */
+.toolbox, .properties-panel { width: 300px; background: white; padding: 20px; border-right: 1px solid #ddd; box-shadow: 2px 0 5px rgba(0,0,0,0.05); z-index: 10; }
+.properties-panel { border-right: none; border-left: 1px solid #ddd; box-shadow: -2px 0 5px rgba(0,0,0,0.05); }
+
+h3 { margin-bottom: 10px; color: #333; font-size: 16px; }
+.desc { font-size: 12px; color: #777; margin-bottom: 20px; }
+
+/* Sürüklenebilir Araçlar */
+.tool-item { background: #f8f9fa; border: 1px solid #e2e8f0; padding: 12px; margin-bottom: 10px; border-radius: 6px; cursor: grab; font-size: 14px; transition: 0.2s; }
+.tool-item:hover { background: #edf2f7; border-color: #cbd5e0; transform: translateY(-2px); }
+
+/* Orta Tuval */
+.canvas-container { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 30px; overflow-y: auto; background: #eef2f6; }
+.canvas-header { margin-bottom: 10px; font-weight: bold; color: #555; }
+.canvas { background: white; width: 100%; max-width: 800px; min-height: 800px; padding: 40px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); position: relative; }
+.empty-state { text-align: center; color: #aaa; margin-top: 50px; border: 2px dashed #ddd; padding: 40px; border-radius: 8px; }
+
+/* Tuvale Düşen Elementler */
+.canvas-item { border: 2px solid transparent; padding: 15px; margin-bottom: 15px; background: #fafafa; border-radius: 6px; cursor: pointer; transition: 0.2s; min-height: 50px; }
+.canvas-item:hover { border-color: #cbd5e0; }
+.canvas-item.active { border-color: #3182ce; background: #ebf8ff; }
+.canvas-item.active::before { content: 'Seçili'; font-size: 10px; background: #3182ce; color: white; padding: 2px 6px; border-radius: 4px; display: block; width: max-content; margin-bottom: 5px; }
+
+/* Sağ Panel Yapay Zeka Formu */
+.panel-msg { color: #888; font-size: 14px; text-align: center; margin-top: 30px; }
+.selected-badge { background: #e2e8f0; padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-bottom: 15px; display: inline-block; color: #4a5568;}
+textarea { width: 100%; height: 150px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; resize: none; margin-bottom: 15px; font-size: 14px; }
+.btn-primary { width: 100%; padding: 12px; background: #3182ce; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+.btn-primary:hover { background: #2b6cb0; }

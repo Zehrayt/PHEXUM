@@ -11,6 +11,7 @@
   "description": "",
   "dependencies": {
     "dotenv": "^17.3.1",
+    "express": "^5.2.1",
     "groq-sdk": "^0.37.0",
     "install": "^0.13.0",
     "npm": "^11.11.0"

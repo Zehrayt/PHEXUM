@@ -29,8 +29,17 @@ class AiService {
         try {
             // 2. Groq (Llama 3) API'sine İsteği Atıyoruz
             const response = await groq.chat.completions.create({
-                model: "llama3-70b-8192", // Çok hızlı ve zeki bir model
-                messages: [{ role: "user", content: userInput }],
+                model: "llama-3.3-70b-versatile", // Çok hızlı ve zeki bir model
+                messages: [
+                    { 
+                        role: "system", 
+                        content: "Sen JoedTech platformu için çalışan profesyonel bir eğitim asistanısın. Yanıtlarını SADECE Türkçe dilinde ver. Asla Çince, Japonca veya başka bir dilde karakter kullanma. Sadece istenen içeriği üret." 
+                    },
+                    { 
+                        role: "user", 
+                        content: userInput 
+                    }
+                ],
                 tools: toolsFormat,
                 tool_choice: "auto", // Kararı LLM'e bırakıyoruz
                 temperature: 0.1 // Halüsinasyon ve uydurma riskini en aza indirmek için düşük sıcaklık

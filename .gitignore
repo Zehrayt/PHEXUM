@@ -1,0 +1,25 @@
+# Environment variables (API keys)
+.env
+.env.*
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Build folders
+dist/
+build/

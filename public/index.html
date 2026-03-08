@@ -9,6 +9,15 @@
 <body>
     <div class="app-container">
         <aside class="toolbox">
+            <div class="page-settings" style="padding: 15px; background: #fff; border-bottom: 1px solid #eee; margin-bottom: 20px; border-radius: 8px;">
+                <label style="font-weight: bold; font-size: 13px; color: #4a5568;">📄 Sayfa Boyutu:</label>
+                <select id="page-format" style="width: 100%; padding: 8px; margin-top: 5px; border-radius: 4px; border: 1px solid #ddd; cursor: pointer;">
+                    <option value="a4">A4 (Standart)</option>
+                    <option value="a3">A3 (Büyük)</option>
+                    <option value="a5">A5 (Küçük)</option>
+                </select>
+            </div>
+
             <h3>🛠️ Araçlar</h3>
             <p class="desc">Tuvale sürükleyin</p>
             <div class="tool-item" draggable="true" data-type="text">📝 Metin Bloğu</div>
@@ -19,7 +28,8 @@
 
         <main class="canvas-container">
             <div class="canvas-header">📄 Sayfa 1</div>
-            <div class="canvas" id="canvas">
+            
+            <div id="canvas" class="canvas format-a4">
                 <div class="empty-state">İçerik oluşturmak için sol taraftan araç sürükleyin</div>
             </div>
         </main>
@@ -32,7 +42,23 @@
                 <div class="selected-badge" id="selected-type">Seçilen: Metin</div>
                 <textarea id="ai-prompt" placeholder="Yapay zekaya ne istediğinizi yazın... (Örn: Fotosentezi anlatan 3 maddelik bir metin yaz)"></textarea>
                 <button id="btn-generate" class="btn-primary">Yapay Zeka İle Üret</button>
+                
             </div>
+
+
+            <button id="btn-copyright" style="width: 100%; padding: 12px; background: #e53e3e; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px; font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.2s;">
+                Telif ve İntihal Kontrolü
+            </button>
+
+            <button id="btn-analyze" style="width: 100%; padding: 12px; background: #ecc94b; color: #744210; border: none; border-radius: 6px; cursor: pointer; margin-top: 20px; font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.2s;">
+                İçerik Bütünlüğünü Analiz Et
+            </button>
+            <div id="analysis-report" style="display: none; margin-top: 15px; padding: 15px; background: #fffaf0; border: 1px dashed #ecc94b; border-radius: 8px; font-size: 12px; line-height: 1.5; color: #744210; max-height: 300px; overflow-y: auto;">
+            </div>
+
+            <button id="btn-export" style="width: 100%; padding: 12px; background: #48bb78; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 30px; font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                Sayfayı PDF Olarak Kaydet
+            </button>
         </aside>
     </div>
     <script src="app.js"></script>

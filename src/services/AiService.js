@@ -4,16 +4,31 @@ const Groq = require("groq-sdk");
 // Groq istemcisini başlatıyoruz
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-// Sisteme dahil ettiğimiz araçlarımızı (Tool) içeri alıyoruz
-const createStudentTool = require('../tools/CreateStudentTool');
 
 // LLM'in erişebileceği (Allowlist) araçlar havuzu
-const availableTools = {
-    [createStudentTool.name]: createStudentTool
-};
+const availableTools = {};
 
 class AiService {
+    constructor() {
+        // Mesaj geçmişini bu dizide tutacağız
+        this.memory = [];
+    }
     async processIntent(userInput, tenantContext) {
+
+        // 1. Önceki konuşmaları belleğe göre string'e dönüştür
+        const historyString = this.memory
+            .map(m => `${m.role === 'user' ? 'Kullanıcı' : 'Asistan'}: ${m.content}`)
+            .join('\n');
+
+        // 2. Dinamik Sistem Talimatı (Hafızayı buraya gömüyoruz)
+        const systemInstruction = `Sen JoedTech platformu için çalışan profesyonel bir eğitim asistanısın. 
+        Yanıtlarını SADECE Türkçe dilinde ver. Kullanıcının önceki mesajlarını dikkate almalısın.
+        Eğer kullanıcı mevcut bir içerikte değişiklik istiyorsa, önceki içeriği hatırla ve sadece istenen kısmı güncelle.
+
+        Önceki Konuşmalar:
+        ${historyString || "Henüz konuşma geçmişi yok."}`;
+
+
         console.log(`\n🧠 [AI ORCHESTRATOR] Kullanıcı komutu LLM'e iletiliyor: "${userInput}"`);
 
         // 1. Araçlarımızı LLM'in anlayacağı standart JSON şemasına (OpenAI Tools Format) çeviriyoruz
@@ -33,7 +48,7 @@ class AiService {
                 messages: [
                     { 
                         role: "system", 
-                        content: "Sen JoedTech platformu için çalışan profesyonel bir eğitim asistanısın. Yanıtlarını SADECE Türkçe dilinde ver. Asla Çince, Japonca veya başka bir dilde karakter kullanma. Sadece istenen içeriği üret." 
+                        content: systemInstruction // Yeni değişkenimizi buraya koyduk
                     },
                     { 
                         role: "user", 
@@ -46,6 +61,15 @@ class AiService {
             });
 
             const responseMessage = response.choices[0].message;
+
+            // Yanıtı ve soruyu hafızaya ekle (Hata almamak için sadece metin yanıtlarını kaydediyoruz)
+            if (responseMessage.content) {
+                this.memory.push({ role: 'user', content: userInput });
+                this.memory.push({ role: 'assistant', content: responseMessage.content });
+
+                // Hafıza çok şişip API limitlerini zorlamasın diye son 10 mesajı tutalım
+                if (this.memory.length > 10) this.memory.shift();
+            }
 
             // 3. PLAN DOĞRULAYICI (Plan Validator): LLM bir araç kullanmaya karar verdi mi?
             if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {

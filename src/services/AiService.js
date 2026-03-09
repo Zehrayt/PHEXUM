@@ -44,7 +44,7 @@ class AiService {
         try {
             // 2. Groq (Llama 3) API'sine İsteği Atıyoruz
             const response = await groq.chat.completions.create({
-                model: "llama-3.3-70b-versatile", // Çok hızlı ve zeki bir model
+                model: "llama-3.1-8b-instant", // Çok hızlı ve zeki bir model
                 messages: [
                     { 
                         role: "system", 

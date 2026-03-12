@@ -51,7 +51,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 // API KÖPRÜSÜ: Frontend'in Yapay Zekaya İstek Attığı Kapı
 app.post('/api/generate', async (req, res) => {
     // Frontend'den (app.js) gönderilen verileri alıyoruz
-    const { prompt, blockType } = req.body;
+    const { prompt, blockType, questionType } = req.body;
     
     console.log(`\n[API] Frontend'den talep geldi: [Blok: ${blockType}] - "${prompt}"`);
 
@@ -117,17 +117,35 @@ app.post('/api/generate', async (req, res) => {
         }
     }
 
-    // EĞİTİM MOTORU: İNTERAKTİF SORU SETİ ÜRETİMİ
-    // EĞİTİM MOTORU: İNTERAKTİF SORU SETİ ÜRETİMİ (HAFIZA DESTEKLİ)
     if (blockType === 'quiz') {
+
+                let questionInstruction = "";
+
+        if(questionType === "quiz-mcq"){
+            questionInstruction = "4 şıklı çoktan seçmeli soru hazırla.";
+        }
+
+        if(questionType === "quiz-fill"){
+            questionInstruction = "boşluk doldurma sorusu hazırla, çoktan seçmeli soru hazırlama.";
+        }
+
+        if(questionType === "quiz-truefalse"){
+            questionInstruction = "doğru yanlış sorusu hazırla,çoktan seçmeli soru hazırlama.";
+        }
+
+        if(questionType === "quiz-short"){
+            questionInstruction = "kısa cevaplı bir soru hazırla,çoktan seçmeli soru hazırlama.";
+}
+
         console.log(`[EĞİTİM MOTORU] Soru seti hazırlanıyor/güncelleniyor: "${prompt}"`);
         
-        // GİZLİ MÜHENDİSLİK: Hem HTML formatını koruyoruz hem de hafıza güncelleme talimatı veriyoruz
         const quizPrompt = `
-        Konu/Talimat: ${prompt}
+        Konu: ${prompt}
+
+        Soru tipi: ${questionInstruction}
         
         Eğer bu bir DÜZELTME/GÜNCELLEME isteğiyse, önceki konuşma geçmişimizdeki soru setini temel al ve SADECE benden istenen değişikliği yap.
-        Eğer YENİ BİR SORU SETİ istiyorsam, bu konuyla ilgili 1 adet zorlayıcı çoktan seçmeli soru (A, B, C, D şıklı) hazırla.
+        Eğer YENİ BİR SORU SETİ istiyorsam, belirtilen soru tipine uygun 1 adet soru hazırla.
         
         ÖNEMLİ KURAL: Çıktıyı SADECE aşağıdaki HTML formatında ver, kod bloğu (\`\`\`) içine alma ve ekstra hiçbir açıklama yazma. Yapıyı asla bozma:
         

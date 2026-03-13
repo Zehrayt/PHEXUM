@@ -134,3 +134,23 @@ textarea { width: 100%; height: 150px; padding: 10px; border: 1px solid #ccc; bo
         border: none;
     }
 }
+
+/* SORU MENÜSÜ */
+
+.question-menu {
+    position: relative;
+}
+
+.quiz-options {
+    display: none;
+    margin-left: 10px;
+    flex-direction: column;
+}
+
+.question-menu:hover .quiz-options {
+    display: flex;
+}
+
+.quiz-options .tool-item {
+    margin-left: 10px;
+}

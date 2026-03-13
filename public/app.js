@@ -1,3 +1,16 @@
+let selectedQuestionType = null;
+
+document.querySelectorAll(".tool-item").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+        const type = btn.getAttribute("data-type");
+
+        if(type && type.startsWith("quiz-")){
+            selectedQuestionType = type.replace("quiz-","");
+            console.log("Seçilen soru tipi:", selectedQuestionType);
+        }
+    })
+})
+
 document.addEventListener('DOMContentLoaded', () => {
     const tools = document.querySelectorAll('.tool-item');
     const canvas = document.getElementById('canvas');
@@ -26,6 +39,23 @@ document.addEventListener('DOMContentLoaded', () => {
             e.dataTransfer.setData('name', tool.innerText);
         });
     });
+
+    function generateQuestion(type){
+
+    const prompt = document.getElementById("ai-prompt").value;
+
+    fetch("/api/generate",{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            prompt:prompt,
+            blockType:"quiz",
+            questionType:type
+        })
+    })
+}
 
     // 2. Tuval Üzerine Gelme (İzin ver)
     canvas.addEventListener('dragover', (e) => {
@@ -203,6 +233,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!activeCanvasItem) return;
         const prompt = document.getElementById('ai-prompt').value;
         const blockType = activeCanvasItem.getAttribute('data-type');
+
+        let questionType = null;
+
+        if(blockType.startsWith("quiz-")){
+            questionType = blockType.replace("quiz-","");
+        }
         
         // Sadece İÇERİK kısmını hedef alıyoruz (Çöp kutusu silinmez)
         const body = activeCanvasItem.querySelector('.item-body');
@@ -212,7 +248,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt: prompt, blockType: blockType })
+                body: JSON.stringify({
+                    prompt: prompt,
+                    blockType: blockType,
+                    questionType: questionType
+                })
             });
 
             const data = await response.json();

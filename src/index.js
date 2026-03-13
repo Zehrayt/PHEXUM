@@ -1,7 +1,38 @@
+require("dotenv").config();
+
 const express = require('express');
 const path = require('path');
 const AiService = require('./services/AiService');
 const Replicate = require('replicate');
+
+async function searchSources(text) {
+
+    const sentences = text
+        .split(/[.!?]/)
+        .map(s => s.trim())
+        .filter(s => s.length > 30);
+
+    for (const sentence of sentences) {
+
+        const query = encodeURIComponent(`"${sentence}"`);
+
+        const url = `https://www.googleapis.com/customsearch/v1?q=${query}&key=${process.env.GOOGLE_API_KEY}&cx=${process.env.SEARCH_ENGINE_ID}`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.items && data.items.length > 0) {
+
+            return data.items.slice(0,3).map(item => ({
+                title: item.title,
+                link: item.link
+            }));
+
+        }
+    }
+
+    return [];
+}
 
 const app = express();
 const PORT = 3000;
@@ -20,7 +51,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 // API KÖPRÜSÜ: Frontend'in Yapay Zekaya İstek Attığı Kapı
 app.post('/api/generate', async (req, res) => {
     // Frontend'den (app.js) gönderilen verileri alıyoruz
-    const { prompt, blockType } = req.body;
+    const { prompt, blockType, questionType } = req.body;
     
     console.log(`\n[API] Frontend'den talep geldi: [Blok: ${blockType}] - "${prompt}"`);
 
@@ -86,17 +117,35 @@ app.post('/api/generate', async (req, res) => {
         }
     }
 
-    // EĞİTİM MOTORU: İNTERAKTİF SORU SETİ ÜRETİMİ
-    // EĞİTİM MOTORU: İNTERAKTİF SORU SETİ ÜRETİMİ (HAFIZA DESTEKLİ)
     if (blockType === 'quiz') {
+
+                let questionInstruction = "";
+
+        if(questionType === "quiz-mcq"){
+            questionInstruction = "4 şıklı çoktan seçmeli soru hazırla.";
+        }
+
+        if(questionType === "quiz-fill"){
+            questionInstruction = "boşluk doldurma sorusu hazırla, çoktan seçmeli soru hazırlama.";
+        }
+
+        if(questionType === "quiz-truefalse"){
+            questionInstruction = "doğru yanlış sorusu hazırla,çoktan seçmeli soru hazırlama.";
+        }
+
+        if(questionType === "quiz-short"){
+            questionInstruction = "kısa cevaplı bir soru hazırla,çoktan seçmeli soru hazırlama.";
+}
+
         console.log(`[EĞİTİM MOTORU] Soru seti hazırlanıyor/güncelleniyor: "${prompt}"`);
         
-        // GİZLİ MÜHENDİSLİK: Hem HTML formatını koruyoruz hem de hafıza güncelleme talimatı veriyoruz
         const quizPrompt = `
-        Konu/Talimat: ${prompt}
+        Konu: ${prompt}
+
+        Soru tipi: ${questionInstruction}
         
         Eğer bu bir DÜZELTME/GÜNCELLEME isteğiyse, önceki konuşma geçmişimizdeki soru setini temel al ve SADECE benden istenen değişikliği yap.
-        Eğer YENİ BİR SORU SETİ istiyorsam, bu konuyla ilgili 1 adet zorlayıcı çoktan seçmeli soru (A, B, C, D şıklı) hazırla.
+        Eğer YENİ BİR SORU SETİ istiyorsam, belirtilen soru tipine uygun 1 adet soru hazırla.
         
         ÖNEMLİ KURAL: Çıktıyı SADECE aşağıdaki HTML formatında ver, kod bloğu (\`\`\`) içine alma ve ekstra hiçbir açıklama yazma. Yapıyı asla bozma:
         
@@ -152,16 +201,22 @@ app.post('/api/generate', async (req, res) => {
 
             // 2. Replicate'e zenginleştirilmiş promptu gönderiyoruz
             const output = await replicate.run(
-                "cjwbw/damo-text-to-video:1e205ea73084bd17a0a3b43396e49ba0d6bc2e754e9283b2df49fad2dcf95755",
+                  "anotherjesse/zeroscope-v2-xl:7a8c0a6a3a94d7a7d6e8d6f6b7c4e8f0f3bfe4b9e3f0c1f1c0a8e2a6d9b8c7a6",
                 {
-                    input: { 
-                        prompt: finalVideoPrompt, // Zenginleştirilmiş senaryoyu kullanıyoruz
-                        num_frames: 16 
+                    input: {
+                    prompt: finalVideoPrompt,
+                    num_frames: 16,
+                    fps: 8,
+                    width: 512,
+                    height: 512
                     }
                 }
-            );
+                );
 
-            const videoUrl = output;
+            console.log("VIDEO OUTPUT:", output); 
+            console.log("REPLICATE TOKEN:", process.env.REPLICATE_API_TOKEN);   
+
+            const videoUrl = Array.isArray(output) ? output[0] : output;            
             
             const htmlContent = `
             <div style="border: 1px solid #38a169; border-radius: 8px; overflow: hidden; background: #1a202c; text-align: center; margin-bottom: 15px;">
@@ -247,32 +302,50 @@ app.post('/api/analyze', async (req, res) => {
 
 // GÜVENLİK MOTORU: TELİF VE İNTİHAL KONTROLÜ
 app.post('/api/check-copyright', async (req, res) => {
+
     const { textContent } = req.body;
-    console.log(`\n🕵️ [TELİF KONTROLÜ] Metinler taranıyor...`);
 
-    // Düşünme ve web tarama efekti (Sistemin çalıştığını hissettirmek için)
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    console.log("[PLAGIARISM CHECK] Searching sources...");
 
-    // ŞOV İÇİN SİMÜLASYON: %50 ihtimalle kopya çıksın
-    const isPlagiarized = Math.random() > 0.5; 
+    try {
 
-    if (isPlagiarized) {
-        res.json({ 
-            status: "PLAGIARIZED", 
-            message: `<div style="padding: 10px; border: 2px solid #e53e3e; background: #fff5f5; border-radius: 8px;">
-                        <h4 style="color: #c53030; margin: 0 0 5px 0;">🚨 Telif İhlali Riski!</h4>
-                        <p style="margin: 0; color: #742a2a; font-size: 12px;">Sayfadaki metinler web üzerindeki kaynaklarla <b>%87 oranında eşleşiyor</b>.</p>
-                      </div>`
+        const sources = await searchSources(textContent);
+
+        if (sources.length > 0) {
+
+            const html = `
+            <div style="padding:10px;border:2px solid #e53e3e;background:#fff5f5;border-radius:8px;">
+                <h4 style="color:#c53030;margin-bottom:8px;">🚨 Possible plagiarism detected</h4>
+                <p>Possible sources:</p>
+                <ul>
+                    ${sources.map(s => `<li><a href="${s.link}" target="_blank">${s.title}</a></li>`).join("")}
+                </ul>
+            </div>
+            `;
+
+            return res.json({
+                status:"PLAGIARIZED",
+                message: html
+            });
+
+        }
+
+        return res.json({
+            status:"CLEAN",
+            message:"✅ No similar sources found"
         });
-    } else {
-        res.json({ 
-            status: "CLEAN", 
-            message: `<div style="padding: 10px; border: 2px solid #38a169; background: #f0fdf4; border-radius: 8px;">
-                        <h4 style="color: #276749; margin: 0 0 5px 0;">✅ %100 Özgün İçerik</h4>
-                        <p style="margin: 0; color: #22543d; font-size: 12px;">Sayfadaki metin ve sorular tamamen özgün. Telif riski bulunmuyor.</p>
-                      </div>`
+
+    } catch(error) {
+
+        console.error("Search error:", error);
+
+        return res.status(500).json({
+            status:"ERROR",
+            message:"Search failed"
         });
+
     }
+
 });
 
 app.listen(PORT, () => {

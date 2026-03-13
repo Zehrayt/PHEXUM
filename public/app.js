@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Çift tıklama ile metin düzenleme özelliğini ekle
         contentDiv.addEventListener('dblclick', (e) => {
             // Eğer blokta sadece metin varsa düzenlemeye izin ver (Resim/Video değilse)
-            if (type === 'text' || type === 'quiz') {
+            if (type === 'text' || type.startsWith('quiz')) {
                 const currentText = contentDiv.innerHTML.replace(/<br>/g, '\n');
                 const textarea = document.createElement('textarea');
                 textarea.style.width = '100%';
@@ -232,18 +232,19 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-generate').addEventListener('click', async () => {
         if(!activeCanvasItem) return;
         const prompt = document.getElementById('ai-prompt').value;
-        const blockType = activeCanvasItem.getAttribute('data-type');
+        const rawType = activeCanvasItem.getAttribute('data-type');
 
+        let blockType = rawType;
         let questionType = null;
 
-        if(blockType.startsWith("quiz-")){
-            questionType = blockType.replace("quiz-","");
+        if(rawType.startsWith("quiz-")){
+            blockType = "quiz"; // 1. Backend'deki ana "quiz" kapısını açmak için
+            questionType = rawType; // 2. İçerideki "quiz-mcq" gibi alt soru tiplerini seçmek için
         }
         
-        // Sadece İÇERİK kısmını hedef alıyoruz (Çöp kutusu silinmez)
         const body = activeCanvasItem.querySelector('.item-body');
-        body.innerHTML = `<span style="color: #666; font-style: italic;">⏳ İşleniyor...</span>`;
-        
+        body.innerHTML = `<span style="color: #666; font-style: italic;">⏳ Soru Seti Hazırlanıyor...</span>`;
+
         try {
             const response = await fetch('/api/generate', {
                 method: 'POST',
@@ -265,7 +266,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 body.innerHTML = `<div style="line-height: 1.6; color: #333;">${formattedText}</div>`;
             } else if (data.status === "SUCCESS") {
-                // YENİ EKLENEN: Araçtan gelen süslü HTML raporunu doğrudan ekrana bas
                 if (data.data && data.data.html) {
                     body.innerHTML = data.data.html;
                 } else {
@@ -406,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const textData = [];
         items.forEach((item) => {
             const type = item.getAttribute('data-type');
-            if (type === 'text' || type === 'quiz') {
+            if (type === 'text' || type.startsWith('quiz')) {
                 const content = item.innerText.replace('×', '').trim();
                 textData.push(content);
             }

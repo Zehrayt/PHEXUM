@@ -118,60 +118,79 @@ app.post('/api/generate', async (req, res) => {
     }
 
     if (blockType === 'quiz') {
+        let questionInstruction = "";
+        let htmlTemplate = ""; // YENİ: Soruya göre değişecek HTML tasarımı
 
-                let questionInstruction = "";
-
-        if(questionType === "quiz-mcq"){
+        if(questionType === "quiz-mcq" || !questionType){ // Varsayılan veya Çoktan Seçmeli
             questionInstruction = "4 şıklı çoktan seçmeli soru hazırla.";
-        }
-
-        if(questionType === "quiz-fill"){
-            questionInstruction = "boşluk doldurma sorusu hazırla, çoktan seçmeli soru hazırlama.";
-        }
-
-        if(questionType === "quiz-truefalse"){
-            questionInstruction = "doğru yanlış sorusu hazırla,çoktan seçmeli soru hazırlama.";
-        }
-
-        if(questionType === "quiz-short"){
-            questionInstruction = "kısa cevaplı bir soru hazırla,çoktan seçmeli soru hazırlama.";
-}
-
-        console.log(`[EĞİTİM MOTORU] Soru seti hazırlanıyor/güncelleniyor: "${prompt}"`);
-        
-        const quizPrompt = `
-        Konu: ${prompt}
-
-        Soru tipi: ${questionInstruction}
-        
-        Eğer bu bir DÜZELTME/GÜNCELLEME isteğiyse, önceki konuşma geçmişimizdeki soru setini temel al ve SADECE benden istenen değişikliği yap.
-        Eğer YENİ BİR SORU SETİ istiyorsam, belirtilen soru tipine uygun 1 adet soru hazırla.
-        
-        ÖNEMLİ KURAL: Çıktıyı SADECE aşağıdaki HTML formatında ver, kod bloğu (\`\`\`) içine alma ve ekstra hiçbir açıklama yazma. Yapıyı asla bozma:
-        
-        <div style="border: 2px solid #3182ce; padding: 15px; border-radius: 8px; background: #ebf8ff; margin-bottom: 10px;">
-            <h4 style="margin-bottom: 10px; color: #2b6cb0;">❓ Bilgi Testi</h4>
-            <p style="margin-bottom: 15px; font-weight: 500;"><strong>Soru:</strong> [Soruyu buraya yaz]</p>
+            htmlTemplate = `
             <ul style="list-style-type: none; padding: 0;">
                 <li style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #cbd5e0;"><input type="radio" name="q1"> A) [Şık]</li>
                 <li style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #cbd5e0;"><input type="radio" name="q1"> B) [Şık]</li>
                 <li style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #cbd5e0;"><input type="radio" name="q1"> C) [Şık]</li>
                 <li style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #cbd5e0;"><input type="radio" name="q1"> D) [Şık]</li>
-            </ul>
+            </ul>`;
+        }
+        else if(questionType === "quiz-fill"){
+            questionInstruction = "Cümlenin ortasında bir boşluk (____) olan bir boşluk doldurma sorusu hazırla. Şık ekleme.";
+            htmlTemplate = `
+            <div style="margin-bottom: 15px;">
+                <input type="text" placeholder="Cevabınızı buraya yazın..." style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #cbd5e0; outline: none;">
+            </div>`;
+        }
+        else if(questionType === "quiz-truefalse"){
+            questionInstruction = "Sadece 'Doğru' veya 'Yanlış' olarak cevaplanabilecek bir bilgi önermesi yaz.";
+            htmlTemplate = `
+            <ul style="list-style-type: none; padding: 0; display: flex; gap: 10px;">
+                <li style="flex: 1; padding: 10px; background: white; border-radius: 4px; border: 1px solid #cbd5e0; text-align: center;"><input type="radio" name="q1"> Doğru</li>
+                <li style="flex: 1; padding: 10px; background: white; border-radius: 4px; border: 1px solid #cbd5e0; text-align: center;"><input type="radio" name="q1"> Yanlış</li>
+            </ul>`;
+        }
+        else if(questionType === "quiz-short"){
+            questionInstruction = "1-2 kelimeyle veya tek bir cümleyle cevaplanabilecek, yoruma kapalı net bir kısa cevaplı soru hazırla.";
+            htmlTemplate = `
+            <div style="margin-bottom: 15px;">
+                <textarea placeholder="Kısa cevabınızı buraya yazın..." style="width: 100%; height: 60px; padding: 10px; border-radius: 4px; border: 1px solid #cbd5e0; resize: none; outline: none;"></textarea>
+            </div>`;
+        }
+
+        console.log(`[EĞİTİM MOTORU] Soru seti hazırlanıyor: Tür=[${questionType}] Konu="${prompt}"`);
+
+        const quizPrompt = `
+        Konu / Kullanıcı Talimatı: ${prompt}
+        Soru tipi: ${questionInstruction}
+        
+        EĞER BU BİR DÜZELTME İSTEĞİYSE ŞU KURALLARA KESİNLİKLE UY:
+        1. Önceki konuşma geçmişimizdeki sorunun metnini, açıklamasını ve DOĞRU CEVABINI ASLA değiştirme.
+        2. Eğer benden yanlış bir şıkkı (çeldiriciyi) değiştirmem isteniyorsa, yerine yazacağım yeni şık da KESİNLİKLE YANLIŞ BİLGİ içermelidir! Doğru cevabı başka bir şıkka kaydırma.
+        3. Sadece benden istenen kısmı değiştir, geri kalan her şeyi birebir aynı bırak.
+        
+        EĞER YENİ BİR SORU İSTENİYORSA: Belirtilen soru tipine uygun, kaliteli 1 adet soru hazırla.
+        
+        MUTLAK KURAL (SIFIR TOLERANS): Çıktın SADECE VE SADECE aşağıdaki HTML kodundan oluşmalıdır!
+        "İşte hazırladığım soru", "Tabii ki" gibi HİÇBİR sohbet veya giriş cümlesi KESİNLİKLE YAZMA. 
+        Doğrudan <div ile başla ve </div> ile bitir. Markdown (\`\`\`) işaretleri KULLANMA!
+        
+        <div style="border: 2px solid #3182ce; padding: 15px; border-radius: 8px; background: #ebf8ff; margin-bottom: 10px;">
+            <h4 style="margin-bottom: 10px; color: #2b6cb0;">❓ Bilgi Testi</h4>
+            <p style="margin-bottom: 15px; font-weight: 500;"><strong>Soru:</strong> [Soruyu buraya yaz]</p>
+            
+            ${htmlTemplate}
+            
             <details style="margin-top: 15px; cursor: pointer; color: #2f855a; background: #c6f6d5; padding: 10px; border-radius: 6px;">
                 <summary style="font-weight: bold;">Cevabı Göster</summary>
-                <p style="margin-top: 10px; font-size: 14px;"><strong>Doğru Cevap:</strong> [Doğru Şık] <br><br> <strong>Açıklama:</strong> [Kısa bir açıklama yap]</p>
+                <p style="margin-top: 10px; font-size: 14px;"><strong>Doğru Cevap:</strong> [Doğru Cevap] <br><br> <strong>Açıklama:</strong> [Kısa bir açıklama yap]</p>
             </details>
         </div>`;
 
         try {
-            // İsteği AiService üzerinden gönderiyoruz, o arka planda hafızayı (Memory) da ekleyecek
+            // İsteği AiService üzerinden gönderiyoruz
             const mockTenantContext = { userId: 101, role: "editor", branch_id: 5 };
             const result = await AiService.processIntent(quizPrompt, mockTenantContext);
             
             return res.json({
                 status: "NO_ACTION", 
-                message: result.message // Yapay zekanın ürettiği HTML'i doğrudan arayüze yolluyoruz
+                message: result.message 
             });
         } catch (error) {
             console.error("Soru Üretim Hatası:", error);

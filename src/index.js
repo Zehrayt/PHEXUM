@@ -277,6 +277,40 @@ app.post('/api/generate', async (req, res) => {
     }
 });
 
+app.post('/api/page-plan', async (req, res) => {
+    const { prompt } = req.body;
+
+    if (!prompt) {
+        return res.status(400).json({ error: "Prompt gerekli" });
+    }
+
+    try {
+        const mockTenantContext = { userId: 101, role: "editor" };
+
+    const aiResult = await AiService.generateText(`
+    Return JSON only.
+
+    layout: rows with text, image, quiz.
+
+    User:
+    ${prompt}
+    `);
+
+    const clean = aiResult.message
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim();
+
+    const json = JSON.parse(clean);
+
+        res.json(json);
+
+    } catch (error) {
+        console.error("Page plan error:", error);
+        res.status(500).json({ error: "Plan oluşturulamadı" });
+    }
+});
+
 // SÜPERVİZÖR BEYNİ: İÇERİK BÜTÜNLÜĞÜ ANALİZİ
 app.post('/api/analyze', async (req, res) => {
     const { pageContent } = req.body;

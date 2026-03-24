@@ -109,5 +109,23 @@ class AiService {
     }
 }
 
+async function generateText(prompt) {
+    const response = await groq.chat.completions.create({
+        messages: [
+            { role: "user", content: prompt }
+        ],
+        model: "llama-3.1-8b-instant"
+    });
+
+    return {
+        message: response.choices[0].message.content
+    };
+}
+
+module.exports = {
+    processIntent,
+    generateText
+};
+
 // Servisi dışarıya hazır kullanımlık açıyoruz
 module.exports = new AiService();

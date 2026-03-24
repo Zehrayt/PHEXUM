@@ -443,5 +443,138 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.disabled = false;
         }
     });
-    
+
+document.getElementById("generatePageBtn").addEventListener("click", async () => {
+
+    const aiPanel = document.getElementById("ai-controls");
+    const noSel = document.getElementById("no-selection");
+    const promptInput = document.getElementById("ai-prompt");
+
+    // 🔥 Panel kapalıysa aç (ilk tıklama)
+    if (aiPanel.style.display === "none") {
+        aiPanel.style.display = "block";
+        noSel.style.display = "none";
+        document.getElementById("selected-type").innerText = "Tüm Sayfa";
+
+        promptInput.focus();
+        return; // ❗ hemen üretme
+    }
+
+    // 🔥 Panel açıksa → üret (ikinci tıklama)
+    const prompt = promptInput.value;
+
+    if (!prompt) {
+        alert("Ne oluşturmak istediğini yaz 😄");
+        return;
+    }
+
+    try {
+        const res = await fetch("/api/page-plan", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                prompt: prompt + " Bu konu için öğretici ve düzenli bir sayfa oluştur."
+            })
+        });
+
+        const data = await res.json();
+
+        renderPageFromJSON(data);
+
+    } catch (err) {
+        console.error(err);
+        alert("Hata oluştu");
+    }
+});
+
+    function renderPageFromJSON(plan) {
+    const canvas = document.getElementById("canvas");
+
+    canvas.querySelectorAll('.canvas-item').forEach(el => el.remove());
+
+    plan.layout.forEach(row => {
+        const rowDiv = document.createElement("div");
+        rowDiv.style.display = "flex";
+        rowDiv.style.gap = "10px";
+        rowDiv.style.marginBottom = "10px";
+
+        //Sayfadaki her blok için çalışıyor (metin, görsel, soru vs.)
+        row.children.forEach(block => {
+
+            const repeat = block.count || 1;
+
+            for (let i = 0; i < repeat; i++) {
+                const blockDiv = document.createElement("div");
+                blockDiv.style.flex = "1";
+                blockDiv.style.padding = "10px";
+                blockDiv.style.border = "1px solid #ccc";
+                blockDiv.style.borderRadius = "8px";
+
+                blockDiv.innerText = "⏳ Yükleniyor...";
+
+                generateContent(blockDiv, block);
+
+                rowDiv.appendChild(blockDiv);
+            }
+
+        });
+
+        canvas.appendChild(rowDiv);
+    });
+}
+
+// block.type bazen "quiz-mcq" gibi detaylı gelir
+// backend sadece "quiz" bildiği için type’ı sadeleştiriyoruz
+// soru türünü kaybetmemek için prompt içine ekliyoruz
+async function generateContent(container, block) {
+    try {
+
+        let type = block.type;
+        let prompt = block.content || block.prompt || "Bu konu hakkında açıklayıcı içerik üret.";
+
+        // 🔥 quiz türünü ayarla
+        if (type && type.startsWith("quiz")) {
+            type = "quiz";
+
+            if (block.type === "quiz-mcq") {
+                prompt += " 4 şıklı çoktan seçmeli, daha önceki sorularla aynı olmayan bir soru üret.";
+            }
+
+            if (block.type === "quiz-fill") {
+                prompt += " Boşluk doldurma formatında, farklı bir soru üret.";
+            }
+
+            if (block.type === "quiz-truefalse") {
+                prompt += " Doğru/Yanlış formatında, farklı bir soru üret.";
+            }
+
+            if (block.type === "quiz-short") {
+                prompt += " Kısa cevaplı, farklı bir soru üret.";
+            }
+        }
+
+        const res = await fetch("/api/generate", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                prompt: prompt,
+                blockType: type
+            })
+        });
+
+        const data = await res.json();
+
+        container.innerHTML = data.message;
+
+    } catch (err) {
+        container.innerText = "Hata oluştu";
+    }
+}
+
 }); 
+
+

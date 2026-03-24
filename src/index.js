@@ -285,29 +285,69 @@ app.post('/api/page-plan', async (req, res) => {
     }
 
     try {
-        const mockTenantContext = { userId: 101, role: "editor" };
+        console.log(`\n🏗️ [PAGE ORCHESTRATOR] Sayfa Mimarisi Çiziliyor...`);
+        console.log(`Talebiniz: "${prompt}"`);
 
-    const aiResult = await AiService.generateText(`
-    Return JSON only.
+        // 1. MUAZZAM SIFIR TOLERANS PROMPTUMUZ
+        const orchestratorPrompt = `
+        Sen JoedTech platformunun Baş Sayfa Tasarımcısı ve Eğitim Koçusun.
+        Görevin, kullanıcının konusuna en uygun E-Kitap sayfa mizanpajını (layout) oluşturmak ve SADECE JSON formatında yanıt vermektir.
 
-    layout: rows with text, image, quiz.
+        SORU (QUIZ) ÜRETİM KURALLARI:
+        1. "quiz-mcq" (Çoktan Seçmeli - Detaylı bilgi)
+        2. "quiz-fill" (Boşluk Doldurma - Terim ezberi)
+        3. "quiz-truefalse" (Doğru/Yanlış - Kesin yargılar)
+        4. "quiz-short" (Kısa Cevap - Kavramsal anlama)
 
-    User:
-    ${prompt}
-    `);
+        KARAR MEKANİZMASI:
+        - Kullanıcının isteğini pedagojik olarak analiz et. Konuya en uygun olan 1 veya 2 soru tipini sen seç.
+        - Metin, görsel ve soru bloklarını mantıklı satırlara (row) böl. Görselleri genelde metinlerin yanına (aynı satıra) koy.
 
-    const clean = aiResult.message
-        .replace(/```json/g, "")
-        .replace(/```/g, "")
-        .trim();
+        MUTLAK KURAL: Çıktın SADECE VE SADECE aşağıdaki JSON şemasında olmalıdır. Başında veya sonunda hiçbir açıklama yapma! Kod bloğu (\`\`\`) kullanma!
 
-    const json = JSON.parse(clean);
+        ÖRNEK JSON ŞEMASI:
+        {
+          "status": "PAGE_ORCHESTRATED",
+          "layout": [
+            {
+              "type": "row",
+              "children": [
+                { "type": "text", "prompt": "Konu hakkında detaylı bilgi" },
+                { "type": "image", "prompt": "Konuyla ilgili detaylı İNGİLİZCE görsel promptu" }
+              ]
+            },
+            {
+              "type": "row",
+              "children": [
+                { "type": "quiz-mcq", "prompt": "Zorlayıcı bir test sorusu" }
+              ]
+            }
+          ]
+        }
 
+        KULLANICI TALEBİ: ${prompt}
+        `;
+
+        // Llama 3'ten mimariyi istiyoruz
+        const aiResult = await AiService.generateText(orchestratorPrompt);
+
+        // 2. GÜÇLÜ JSON AYIKLAYICI (Regex)
+        // AI gevezelik yapıp sonuna "Umarım beğenirsiniz" yazsa bile, sadece { } arasını çeker alır!
+        const match = aiResult.message.match(/\{[\s\S]*\}/);
+        
+        if (!match) {
+            throw new Error("Yapay zeka geçerli bir JSON haritası çizemedi.");
+        }
+
+        const cleanJson = match[0];
+        const json = JSON.parse(cleanJson);
+
+        console.log("✅ JSON Haritası Başarıyla Çıkarıldı! Arayüze gönderiliyor...");
         res.json(json);
 
     } catch (error) {
-        console.error("Page plan error:", error);
-        res.status(500).json({ error: "Plan oluşturulamadı" });
+        console.error("🚨 [MİMAR HATASI]:", error.message);
+        res.status(500).json({ error: "Plan oluşturulamadı: " + error.message });
     }
 });
 

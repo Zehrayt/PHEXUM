@@ -1,0 +1,38 @@
+Günlük Geliştirme Raporu: Sayfa Orkestratörü ve UX Optimizasyonları
+Modül: JoedTech AI E-Book Builder - Faz 2
+Geliştiriciler: Frontend ve Backend Stajyer Ekibi Ortak Çalışması
+Durum: Başarıyla Canlıya Alındı
+
+Özet:
+Bugün, platformun "Mikro-Düzenleyici" (tekil blok üretimi) mantığından çıkarılarak, "Makro-Orkestratör" (tek komutla tüm sayfanın mizanpajının çizilmesi) vizyonuna geçişi başarıyla tamamlanmıştır. Frontend ve Backend ekiplerinin eşzamanlı geliştirmeleri tek bir potada eritilerek kusursuz bir "Hibrit Düzenleme" deneyimi yaratılmıştır.
+
+1. Backend ve Yapay Zeka Mimarisi (Backend & AI)
+Sınıf (Class) ve Export Optimizasyonu: AiService.js içerisindeki dışa aktarma (export) çakışmaları ve kapsam (scope) hataları giderildi. Servis, Singleton tasarım desenine uygun tek bir güvenilir obje haline getirildi.
+
+Token ve Hafıza Koruması: Groq API 429 (Rate Limit) hatalarını önlemek amacıyla, Llama 3'ün hafızası son 4 mesaj (2 soru-cevap döngüsü) ile sınırlandırılarak maliyet ve hız optimizasyonu sağlandı.
+
+Sayfa Orkestratörü (Page Orchestrator) Endpoint'i: /api/page-plan kapısı oluşturuldu.
+
+Sıfır Tolerans Prompt Mühendisliği: Llama 3'e "Sadece JSON döndür ve pedagojik kararlar al" talimatı veren sıkı bir prompt gömüldü.
+
+Regex Kalkanı: Yapay zekanın gevezelik (hallucination) yaparak JSON dışına metin taşırması ihtimaline karşı, backend'e sadece { ... } içerisindeki geçerli JSON'ı ayıklayan match(/\{[\s\S]*\}/) filtresi eklendi. Çökme (SyntaxError) sorunları tarihe karıştı.
+
+2. Frontend ve Kullanıcı Deneyimi (Frontend & UX)
+Dinamik Mizanpaj Çözücü (renderPageFromJSON): Arka plandan gelen JSON haritası okunarak, CSS Flexbox mantığıyla dinamik satırlar (row) ve sütunlar oluşturuldu.
+
+Döngüsel Çoklu Üretim (count logic): JSON'dan gelen "3 adet soru üret" talebini karşılamak için döngü (for loop) kuruldu. Yapay zekanın aynı soruyu tekrar etmemesi için, döngüdeki her isteğin sonuna otonom olarak "farklı bir soru üret" parametresi eklendi.
+
+Hibrit Düzenleme (Inline Editing): Metin bloklarındaki hantal "Çift Tıklama (dblclick)" özelliği kaldırılarak, Notion tarzı doğrudan düzenleme imkanı sunan contenteditable="true" özelliği entegre edildi.
+
+Etkileşim Korunumu: AI tarafından otomatik oluşturulan bloklara, çöp kutusu, tıklama ile sağ paneli tetikleme ve sürükle-bırak özellikleri başarıyla miras bırakıldı.
+
+3. Sonuç ve Kazanımlar
+Kullanıcı artık "Mitoz bölünme hakkında sayfa yap ve 2 soru ekle" dediğinde;
+
+AI konuyu anlıyor ve HTML yerine bir JSON mimari planı çiziyor.
+
+Frontend bu planı okuyup tuvale boş kutular açıyor.
+
+Her bir kutu kendi içeriği için arka plandaki AI API'lerine paralel istek atıyor.
+
+Çizilen sayfa üzerinde kullanıcı klavyesiyle manuel değişiklik yapabiliyor veya sağ panelden AI ile spesifik bloğu yeniden şekillendirebiliyor.

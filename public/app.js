@@ -42,20 +42,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function generateQuestion(type){
 
-    const prompt = document.getElementById("ai-prompt").value;
+        const prompt = document.getElementById("ai-prompt").value;
 
-    fetch("/api/generate",{
-        method:"POST",
-        headers:{
-            "Content-Type":"application/json"
-        },
-        body:JSON.stringify({
-            prompt:prompt,
-            blockType:"quiz",
-            questionType:type
+        fetch("/api/generate",{
+            method:"POST",
+            headers:{
+                "Content-Type":"application/json"
+            },
+            body:JSON.stringify({
+                prompt:prompt,
+                blockType:"quiz",
+                questionType:type
+            })
         })
-    })
-}
+    }
 
     // 2. Tuval Üzerine Gelme (İzin ver)
     canvas.addEventListener('dragover', (e) => {
@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
         contentDiv.className = 'item-body'; // Bu sınıfa yazdıracağız
         contentDiv.innerHTML = `<span style="color: #999;">[Boş ${name}] - Üretmek için tıklayın.</span>`;
         item.appendChild(contentDiv);
-
+/*
         // Çift tıklama ile metin düzenleme özelliğini ekle
         contentDiv.addEventListener('dblclick', (e) => {
             // Eğer blokta sadece metin varsa düzenlemeye izin ver (Resim/Video değilse)
@@ -127,7 +127,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
             }
-        });
+        });*/
+
+        if (type === 'text') {
+                        contentDiv.setAttribute('contenteditable', 'true');
+                        contentDiv.style.outline = 'none'; // Tıklayınca çirkin mavi çerçeve çıkmasın
+                        contentDiv.style.cursor = 'text'; // Fareyle üzerine gelince yazma imleci çıksın
+                    }
 
         item.onclick = (e) => {
             e.stopPropagation();
@@ -444,136 +450,182 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-document.getElementById("generatePageBtn").addEventListener("click", async () => {
+    document.getElementById("generatePageBtn").addEventListener("click", async () => {
 
-    const aiPanel = document.getElementById("ai-controls");
-    const noSel = document.getElementById("no-selection");
-    const promptInput = document.getElementById("ai-prompt");
+        const aiPanel = document.getElementById("ai-controls");
+        const noSel = document.getElementById("no-selection");
+        const promptInput = document.getElementById("ai-prompt");
 
-    // 🔥 Panel kapalıysa aç (ilk tıklama)
-    if (aiPanel.style.display === "none") {
-        aiPanel.style.display = "block";
-        noSel.style.display = "none";
-        document.getElementById("selected-type").innerText = "Tüm Sayfa";
+        // 🔥 Panel kapalıysa aç (ilk tıklama)
+        if (aiPanel.style.display === "none") {
+            aiPanel.style.display = "block";
+            noSel.style.display = "none";
+            document.getElementById("selected-type").innerText = "Tüm Sayfa";
 
-        promptInput.focus();
-        return; // ❗ hemen üretme
-    }
-
-    // 🔥 Panel açıksa → üret (ikinci tıklama)
-    const prompt = promptInput.value;
-
-    if (!prompt) {
-        alert("Ne oluşturmak istediğini yaz 😄");
-        return;
-    }
-
-    try {
-        const res = await fetch("/api/page-plan", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                prompt: prompt + " Bu konu için öğretici ve düzenli bir sayfa oluştur."
-            })
-        });
-
-        const data = await res.json();
-
-        renderPageFromJSON(data);
-
-    } catch (err) {
-        console.error(err);
-        alert("Hata oluştu");
-    }
-});
-
-    function renderPageFromJSON(plan) {
-    const canvas = document.getElementById("canvas");
-
-    canvas.querySelectorAll('.canvas-item').forEach(el => el.remove());
-
-    plan.layout.forEach(row => {
-        const rowDiv = document.createElement("div");
-        rowDiv.style.display = "flex";
-        rowDiv.style.gap = "10px";
-        rowDiv.style.marginBottom = "10px";
-
-        //Sayfadaki her blok için çalışıyor (metin, görsel, soru vs.)
-        row.children.forEach(block => {
-
-            const repeat = block.count || 1;
-
-            for (let i = 0; i < repeat; i++) {
-                const blockDiv = document.createElement("div");
-                blockDiv.style.flex = "1";
-                blockDiv.style.padding = "10px";
-                blockDiv.style.border = "1px solid #ccc";
-                blockDiv.style.borderRadius = "8px";
-
-                blockDiv.innerText = "⏳ Yükleniyor...";
-
-                generateContent(blockDiv, block);
-
-                rowDiv.appendChild(blockDiv);
-            }
-
-        });
-
-        canvas.appendChild(rowDiv);
-    });
-}
-
-// block.type bazen "quiz-mcq" gibi detaylı gelir
-// backend sadece "quiz" bildiği için type’ı sadeleştiriyoruz
-// soru türünü kaybetmemek için prompt içine ekliyoruz
-async function generateContent(container, block) {
-    try {
-
-        let type = block.type;
-        let prompt = block.content || block.prompt || "Bu konu hakkında açıklayıcı içerik üret.";
-
-        // 🔥 quiz türünü ayarla
-        if (type && type.startsWith("quiz")) {
-            type = "quiz";
-
-            if (block.type === "quiz-mcq") {
-                prompt += " 4 şıklı çoktan seçmeli, daha önceki sorularla aynı olmayan bir soru üret.";
-            }
-
-            if (block.type === "quiz-fill") {
-                prompt += " Boşluk doldurma formatında, farklı bir soru üret.";
-            }
-
-            if (block.type === "quiz-truefalse") {
-                prompt += " Doğru/Yanlış formatında, farklı bir soru üret.";
-            }
-
-            if (block.type === "quiz-short") {
-                prompt += " Kısa cevaplı, farklı bir soru üret.";
-            }
+            promptInput.focus();
+            return; // ❗ hemen üretme
         }
 
-        const res = await fetch("/api/generate", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                prompt: prompt,
-                blockType: type
-            })
+        // 🔥 Panel açıksa → üret (ikinci tıklama)
+        const prompt = promptInput.value;
+
+        if (!prompt) {
+            alert("Ne oluşturmak istediğini yaz 😄");
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/page-plan", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    prompt: prompt + " Bu konu için öğretici ve düzenli bir sayfa oluştur."
+                })
+            });
+
+            const data = await res.json();
+
+            renderPageFromJSON(data);
+
+        } catch (err) {
+            console.error(err);
+            alert("Hata oluştu");
+        }
+    });
+
+
+    function renderPageFromJSON(plan) {
+        const canvas = document.getElementById("canvas");
+        
+        // Önceki tuvali tamamen temizle
+        canvas.innerHTML = ''; 
+        const emptyState = document.querySelector('.empty-state');
+        if (emptyState) emptyState.style.display = 'none';
+
+        plan.layout.forEach(row => {
+            const rowDiv = document.createElement("div");
+            rowDiv.style.display = "flex";
+            rowDiv.style.gap = "15px";
+            rowDiv.style.marginBottom = "15px";
+            rowDiv.style.width = "100%";
+
+            row.children.forEach(block => {
+                const repeat = block.count || 1;
+
+                for (let i = 0; i < repeat; i++) {
+                    const type = block.type;
+                    let name = "AI Bloğu";
+                    if (type === "text") name = "Metin Bloğu";
+                    if (type === "image") name = "AI Görsel";
+                    if (type.startsWith("quiz")) name = "AI Soru Seti";
+
+                    // 1. Kutuyu Standartlarımıza Göre Yaratıyoruz
+                    const item = document.createElement('div');
+                    item.classList.add('canvas-item');
+                    item.style.flex = "1"; // Satır içinde esneklik
+                    item.setAttribute('data-type', type);
+
+                    // 2. Çöp Kutusu Ekle
+                    const delBtn = document.createElement('button');
+                    delBtn.innerHTML = '×';
+                    delBtn.className = 'delete-btn';
+                    delBtn.onclick = (e) => { e.stopPropagation(); item.remove(); };
+                    item.appendChild(delBtn);
+
+                    // 3. İÇERİK ALANI (Metinlerin yazılacağı yer)
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'item-body';
+                    contentDiv.innerHTML = `<span style="color: #666; font-style: italic;">⏳ Yapay Zeka Çiziyor...</span>`;
+                    item.appendChild(contentDiv);
+                    /*
+                    // 🔥 SİHİR 1: Çift Tıklama İle Manuel Düzenleme
+                    contentDiv.addEventListener('dblclick', (e) => {
+                        if (type === 'text' || type.startsWith('quiz')) {
+                            const currentText = contentDiv.innerHTML.replace(/<br>/g, '\n');
+                            const textarea = document.createElement('textarea');
+                            textarea.style.width = '100%';
+                            textarea.style.height = contentDiv.clientHeight + 'px';
+                            textarea.style.fontFamily = 'inherit';
+                            textarea.style.fontSize = 'inherit';
+                            textarea.value = currentText.replace(/<\/?[^>]+(>|$)/g, ""); // HTML'i temizle
+                            
+                            contentDiv.innerHTML = '';
+                            contentDiv.appendChild(textarea);
+                            textarea.focus();
+
+                            textarea.addEventListener('blur', () => {
+                                contentDiv.innerHTML = textarea.value.replace(/\n/g, '<br>');
+                            });
+                            textarea.addEventListener('keydown', (e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) textarea.blur();
+                            });
+                        }
+                    });*/
+
+                    if (type === 'text') {
+                        contentDiv.setAttribute('contenteditable', 'true');
+                        contentDiv.style.outline = 'none'; // Tıklayınca çirkin mavi çerçeve çıkmasın
+                        contentDiv.style.cursor = 'text'; // Fareyle üzerine gelince yazma imleci çıksın
+                    }
+
+                    // 🔥 SİHİR 2: Tıklama İle Seçme ve Sağ Paneli Açma
+                    item.onclick = (e) => {
+                        e.stopPropagation();
+                        // app.js'in üstlerindeki global seçme fonksiyonunu tetikliyoruz
+                        selectItem(item, type, name); 
+                    };
+
+                    // Sıralama (Sürükle bırak) olayını ekle
+                    if (typeof addReorderEvents === "function") {
+                        addReorderEvents(item);
+                    }
+
+                    rowDiv.appendChild(item);
+
+                    // 4. Bloğun içini doldurması için Yapay Zekaya gönder!
+                    generateContent(contentDiv, block);
+                }
+            });
+
+            canvas.appendChild(rowDiv);
         });
-
-        const data = await res.json();
-
-        container.innerHTML = data.message;
-
-    } catch (err) {
-        container.innerText = "Hata oluştu";
     }
-}
+
+    async function generateContent(container, block) {
+        try {
+            let type = block.type;
+            let prompt = block.content || block.prompt || "Bu konu hakkında açıklayıcı içerik üret.";
+
+            // Soru tiplerini Backend'in anlayacağı şekle çevir
+            if (type && type.startsWith("quiz")) {
+                type = "quiz";
+                if (block.type === "quiz-mcq") prompt += " 4 şıklı çoktan seçmeli, farklı bir soru üret.";
+                if (block.type === "quiz-fill") prompt += " Boşluk doldurma formatında, farklı bir soru üret.";
+                if (block.type === "quiz-truefalse") prompt += " Doğru/Yanlış formatında, farklı bir soru üret.";
+                if (block.type === "quiz-short") prompt += " Kısa cevaplı, farklı bir soru üret.";
+            }
+
+            const res = await fetch("/api/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ prompt: prompt, blockType: type, questionType: block.type })
+            });
+
+            const data = await res.json();
+
+            // Sadece başarılı dönen HTML'i kutunun içine bas
+            if (data.status === "NO_ACTION") {
+                container.innerHTML = data.message;
+            } else {
+                container.innerHTML = `<span style="color: #e53e3e;">🚨 Yapay zeka yanıt veremedi.</span>`;
+            }
+
+        } catch (err) {
+            container.innerHTML = `<span style="color: red;">❌ İnternet veya bağlantı hatası</span>`;
+        }
+    }
 
 }); 
 

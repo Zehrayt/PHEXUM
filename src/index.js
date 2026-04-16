@@ -48,11 +48,12 @@ app.use(express.json());
 // Frontend (Arayüz) dosyalarımızı dışa açıyoruz
 app.use(express.static(path.join(__dirname, '../public')));
 
+
 // API KÖPRÜSÜ: Frontend'in Yapay Zekaya İstek Attığı Kapı
 app.post('/api/generate', async (req, res) => {
     // Frontend'den (app.js) gönderilen verileri alıyoruz
     const { prompt, blockType, questionType } = req.body;
-    
+
     console.log(`\n[API] Frontend'den talep geldi: [Blok: ${blockType}] - "${prompt}"`);
 
     // GÜVENLİK KONTROLÜ: Eğer prompt boşsa, LLM'e sormadan hata döndürelim
@@ -60,23 +61,38 @@ app.post('/api/generate', async (req, res) => {
         return res.status(400).json({ status: "ERROR", message: "Yapay zeka için bir istek (prompt) yazmalısınız." });
     }
 
-    
+    const typeInstructions = {
+        text: "Generate ONLY explanatory text. No questions.",
+        image: "Generate an image prompt ONLY.",
+        video: "Generate a video prompt ONLY.",
+
+        "quiz-mcq": "Generate ONLY a multiple choice question with 4 options.",
+        "quiz-fill": "Generate ONLY a fill-in-the-blank question.",
+        "quiz-truefalse": "Generate ONLY a true/false question.",
+        "quiz-short": "Generate ONLY a short answer question."
+    };
+        const instruction = typeInstructions[blockType] || "Generate appropriate content.";
+
     // PROFESYONEL GÖRSEL MOTORU: OPENAI DALL-E 3 ENTEGRASYONU (HAFIZA DESTEKLİ)
 
     if (blockType === 'image') {
         console.log(`[VİZYON MOTORU] Talimat alınıyor: "${prompt}"`);
 
         // 1. Llama 3'ten hafızayı kullanarak DALL-E için nihai promptu üretmesini istiyoruz
-        const imagePromptRequest = `Kullanıcı bir görsel üretmek veya mevcut görselini değiştirmek istiyor.
-        Kullanıcının Talimatı: "${prompt}"
-        Eğer bu bir düzeltme/güncelleme isteğiyse (örneğin "bunu gece yap", "arabayı kırmızı yap"), önceki konuşma geçmişindeki görsel detaylarını hatırla ve görselin tamamını anlatan YENİ ve TEK BİR İNGİLİZCE PROMPT üret.
-        Eğer yeni bir istekse, doğrudan İngilizce, detaylı ve DALL-E 3'e uygun fütüristik/sinematik bir prompt yaz.
-        ÇIKTI KURALI: SADECE İNGİLİZCE PROMPTU YAZ, BAŞKA HİÇBİR AÇIKLAMA, GİRİŞ VEYA TIRNAK İŞARETİ KULLANMA.`;
+        const finalPrompt = `
+        ${instruction}
 
+        User request:
+        ${prompt}
+
+        STRICT RULE:
+        Follow ONLY the instruction above.
+        Do not generate other content types.
+        `;
         try {
             // Llama 3 hafızayı okuyup bize mükemmel bir DALL-E promptu verecek
             const mockTenantContext = { userId: 101, role: "editor" };
-            const aiResult = await AiService.processIntent(imagePromptRequest, mockTenantContext);
+            const aiResult = await AiService.processIntent(finalPrompt, mockTenantContext);
             const finalImagePrompt = aiResult.message;
             
             console.log(`[VİZYON MOTORU] DALL-E'ye Giden Akıllı Prompt: "${finalImagePrompt}"`);
@@ -99,25 +115,33 @@ app.post('/api/generate', async (req, res) => {
             const data = await response.json();
 
             if (data.error) {
-                 return res.json({ status: "NO_ACTION", message: `<div style="color: #e53e3e; padding: 10px; border: 1px solid #fc8181; border-radius: 8px; background: #fff5f5;">🚨 OpenAI Hatası: ${data.error.message}</div>` });
+                return res.status(500).json({
+                    status: "ERROR",
+                    message: `OpenAI Hatası: ${data.error.message}`
+                });
             }
 
             const imageUrl = data.data[0].url;
-            
-            const htmlContent = `<div style="text-align: center;">
+
+            const htmlContent = `
+            <div style="text-align: center;">
                 <img src="${imageUrl}" alt="${prompt}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 1px solid #ddd;">
-                <div style="font-size: 12px; margin-top: 10px; color: #666;">✨ DALL-E 3 (Hafıza Destekli)</div>
-            </div>`;
+                <div style="font-size: 12px; margin-top: 10px; color: #666;">✨ DALL-E 3</div>
+            </div>
+            `;
 
-            return res.json({ status: "NO_ACTION", message: htmlContent });
-
+            return res.json({
+                status: "SUCCESS",
+                content: htmlContent
+            });
+            
         } catch (error) {
             console.error("Görsel Üretim Hatası:", error);
             return res.status(500).json({ status: "ERROR", message: "Görsel üretilemedi." });
         }
     }
 
-    if (blockType === 'quiz') {
+    if (blockType.startsWith('quiz')) {
         let questionInstruction = "";
         let htmlTemplate = ""; // YENİ: Soruya göre değişecek HTML tasarımı
 
@@ -154,7 +178,7 @@ app.post('/api/generate', async (req, res) => {
             </div>`;
         }
 
-        console.log(`[EĞİTİM MOTORU] Soru seti hazırlanıyor: Tür=[${questionType}] Konu="${prompt}"`);
+        console.log(`[EĞİTİM MOTORU] Hazırlanıyor: Tür=[${questionType}] Konu="${prompt}"`);
 
         const quizPrompt = `
         Konu / Kullanıcı Talimatı: ${prompt}
@@ -166,7 +190,8 @@ app.post('/api/generate', async (req, res) => {
         3. Sadece benden istenen kısmı değiştir, geri kalan her şeyi birebir aynı bırak.
         
         EĞER YENİ BİR SORU İSTENİYORSA: Belirtilen soru tipine uygun, kaliteli 1 adet soru hazırla.
-        
+        PEDAGOJİK KURAL: Eğer şıklı bir soru üretiyorsan, şıkların zorluk seviyeleri birbirine ÇOK YAKIN olmalıdır. Absürt, komik veya bariz yanlış olan zayıf çeldiriciler KULLANMA. Çeldiriciler konuya ait bilimsel olarak mantıklı yanılgılardan oluşmalıdır.
+
         MUTLAK KURAL (SIFIR TOLERANS): Çıktın SADECE VE SADECE aşağıdaki HTML kodundan oluşmalıdır!
         "İşte hazırladığım soru", "Tabii ki" gibi HİÇBİR sohbet veya giriş cümlesi KESİNLİKLE YAZMA. 
         Doğrudan <div ile başla ve </div> ile bitir. Markdown (\`\`\`) işaretleri KULLANMA!
@@ -189,12 +214,19 @@ app.post('/api/generate', async (req, res) => {
             const result = await AiService.processIntent(quizPrompt, mockTenantContext);
             
             return res.json({
-                status: "NO_ACTION", 
-                message: result.message 
+                status: "SUCCESS",
+                type: "html", //  KRİTİK
+                content: result.message,
+                error: null
             });
-        } catch (error) {
+                    } catch (error) {
             console.error("Soru Üretim Hatası:", error);
-            return res.status(500).json({ status: "ERROR", message: "Soru üretilemedi." });
+            return res.status(500).json({
+                status: "ERROR",
+                type: null,
+                content: null,
+                error: "Soru üretilemedi."
+            });
         }
     }
 
@@ -232,9 +264,6 @@ app.post('/api/generate', async (req, res) => {
                 }
                 );
 
-            console.log("VIDEO OUTPUT:", output); 
-            console.log("REPLICATE TOKEN:", process.env.REPLICATE_API_TOKEN);   
-
             const videoUrl = Array.isArray(output) ? output[0] : output;            
             
             const htmlContent = `
@@ -248,7 +277,12 @@ app.post('/api/generate', async (req, res) => {
                 </video>
             </div>`;
 
-            return res.json({ status: "NO_ACTION", message: htmlContent });
+            console.log("VIDEO HTML:", htmlContent);
+
+            return res.json({
+                status: "SUCCESS",
+                content: htmlContent
+            });
 
         } catch (error) {
             console.error("🚨 [VİDEO HATASI]:", error);
@@ -264,16 +298,57 @@ app.post('/api/generate', async (req, res) => {
         branch_id: 5 // Sadece 5 numaralı şubeye işlem yapabilir
     };
 
+    const finalPrompt = `
+    ${instruction}
+
+    User request:
+    ${prompt}
+
+    STRICT RULE:
+    Follow ONLY the instruction above.
+    Do not generate other content types.
+    `;
+
     try {
-        // İstemi bizim yazdığımız AI Orkestratörüne (Beyne) gönderiyoruz
-        // Bu motor, isteği analiz edip Groq'a gönderir ve cevabı (JSON) bize döndürür
-        const result = await AiService.processIntent(prompt, mockTenantContext);
-        
-        // AI'dan dönen sonucu (JSON) tekrar arayüze yolluyoruz
-        res.json(result);
+        const result = await AiService.processIntent(finalPrompt, mockTenantContext);
+
+        console.log("BLOCK TYPE:", blockType);
+        console.log("AI RAW:", result.message);
+
+        // KRİTİK DÜZELTME: AiService hata döndürdüyse bunu Frontend'e HATA olarak bildir
+        if (result.status === "ERROR") {
+            return res.status(500).json({
+                status: "ERROR",
+                message: result.message
+            });
+        }
+
+        let cleanContent = result.message;
+
+        if (blockType === "text") {
+            cleanContent = cleanContent.replace(/<[^>]*>/g, '');
+        } else if (blockType.startsWith("quiz")) {
+            if (!cleanContent.includes("<")) {
+                cleanContent = `<div>${cleanContent}</div>`;
+            }
+        }
+
+        if (!cleanContent || cleanContent.trim() === "") {
+            cleanContent = "İçerik üretilemedi.";
+        }
+
+        return res.json({
+            status: "SUCCESS",
+            type: blockType,
+            content: cleanContent
+        });
+
     } catch (error) {
-        console.error(`🚨 [AI SERVİS HATASI]`, error);
-        res.status(500).json({ status: "ERROR", message: "Yapay zeka sunucusuna bağlanırken bir hata oluştu." });
+        console.error("🚨 [AI SERVİS HATASI]", error);
+        return res.status(500).json({
+            status: "ERROR",
+            message: "Yapay zeka sunucusuna bağlanırken bir hata oluştu."
+        });
     }
 });
 
@@ -285,47 +360,40 @@ app.post('/api/page-plan', async (req, res) => {
     }
 
     try {
-        console.log(`\n🏗️ [PAGE ORCHESTRATOR] Sayfa Mimarisi Çiziliyor...`);
+        console.log(`\n [PAGE ORCHESTRATOR] Sayfa Mimarisi Çiziliyor...`);
         console.log(`Talebiniz: "${prompt}"`);
 
         // 1. MUAZZAM SIFIR TOLERANS PROMPTUMUZ
         const orchestratorPrompt = `
-        Sen JoedTech platformunun Baş Sayfa Tasarımcısı ve Eğitim Koçusun.
-        Görevin, kullanıcının konusuna en uygun E-Kitap sayfa mizanpajını (layout) oluşturmak ve SADECE JSON formatında yanıt vermektir.
+        GÖREV: Konuya uygun E-Kitap sayfa mizanpajı (layout) JSON'ı oluştur.
+        KONU: ${prompt}
 
-        SORU (QUIZ) ÜRETİM KURALLARI:
-        1. "quiz-mcq" (Çoktan Seçmeli - Detaylı bilgi)
-        2. "quiz-fill" (Boşluk Doldurma - Terim ezberi)
-        3. "quiz-truefalse" (Doğru/Yanlış - Kesin yargılar)
-        4. "quiz-short" (Kısa Cevap - Kavramsal anlama)
+        PEDAGOJİK SORU SEÇİMİ (Konuya en uygun 1-2 tanesini seç):
+        - "quiz-mcq": Detaylı bilgi ölçümü
+        - "quiz-fill": Terim/kavram ezberi
+        - "quiz-truefalse": Kesin ve net yargılar
+        - "quiz-short": Kavramsal anlama
 
-        KARAR MEKANİZMASI:
-        - Kullanıcının isteğini pedagojik olarak analiz et. Konuya en uygun olan 1 veya 2 soru tipini sen seç.
-        - Metin, görsel ve soru bloklarını mantıklı satırlara (row) böl. Görselleri genelde metinlerin yanına (aynı satıra) koy.
+        KURAL: SADECE GEÇERLİ JSON DÖNDÜR. Asla açıklama veya \`\`\` kullanma. Görselleri metinlerin yanına (aynı row içine) koy.
 
-        MUTLAK KURAL: Çıktın SADECE VE SADECE aşağıdaki JSON şemasında olmalıdır. Başında veya sonunda hiçbir açıklama yapma! Kod bloğu (\`\`\`) kullanma!
-
-        ÖRNEK JSON ŞEMASI:
+        JSON ŞABLONU:
         {
-          "status": "PAGE_ORCHESTRATED",
           "layout": [
             {
               "type": "row",
               "children": [
-                { "type": "text", "prompt": "Konu hakkında detaylı bilgi" },
-                { "type": "image", "prompt": "Konuyla ilgili detaylı İNGİLİZCE görsel promptu" }
+                { "type": "text", "prompt": "Detaylı konu anlatımı" },
+                { "type": "image", "prompt": "Detaylı İNGİLİZCE görsel betimlemesi" }
               ]
             },
             {
               "type": "row",
               "children": [
-                { "type": "quiz-mcq", "prompt": "Zorlayıcı bir test sorusu" }
+                { "type": "quiz-mcq", "prompt": "Zorlayıcı test sorusu" }
               ]
             }
           ]
         }
-
-        KULLANICI TALEBİ: ${prompt}
         `;
 
         // Llama 3'ten mimariyi istiyoruz
@@ -341,6 +409,50 @@ app.post('/api/page-plan', async (req, res) => {
 
         const cleanJson = match[0];
         const json = JSON.parse(cleanJson);
+
+        // 🔥 1️⃣ duplicate temizleme
+        const usedTypes = new Set();
+
+        if (json.layout && Array.isArray(json.layout)) {
+        json.layout.forEach(row => {
+
+            if (!row.children || !Array.isArray(row.children)) return;
+
+            row.children = row.children.filter(block => {
+
+            if (!block.type) return false;
+
+            const typeKey = block.type;
+
+            if (usedTypes.has(typeKey)) {
+                return false;
+            }
+
+            usedTypes.add(typeKey);
+            return true;
+            });
+
+        });
+        }
+
+        // 🔥 2️⃣ max block limiti
+        let totalBlocks = 0;
+
+        if (json.layout && Array.isArray(json.layout)) {
+        json.layout.forEach(row => {
+
+            if (!row.children || !Array.isArray(row.children)) return;
+
+            row.children = row.children.filter(block => {
+
+            if (totalBlocks >= 6) return false;
+
+            totalBlocks++;
+            return true;
+            });
+
+        });
+        }
 
         console.log("✅ JSON Haritası Başarıyla Çıkarıldı! Arayüze gönderiliyor...");
         res.json(json);
@@ -373,7 +485,7 @@ app.post('/api/analyze', async (req, res) => {
             {
                 "blockNumber": 2,
                 "reason": "Bu soru seti, üstteki metnin bağlamından kopuk.",
-                "suggestedPrompt": "Hücre bölünmesi evreleri hakkında zorlayıcı bir soru hazırla"
+                "suggestedPrompt": "Konuya uygun yeni bir prompt önerisi"
             }
         ]
     }
